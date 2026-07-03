@@ -5,6 +5,9 @@ export interface Settings {
   daily_auto_cap: number;
   per_user_hourly_cap: number;
   debounce_seconds: number;
+  approval_categories: string[];
+  custom_rule_enabled: boolean;
+  custom_rule: string;
 }
 
 export interface Msg {

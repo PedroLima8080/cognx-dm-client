@@ -4,6 +4,19 @@ import { apiGet, apiPost } from "@/lib/api";
 import type { DisabledItem, Settings } from "@/types";
 import { Loading } from "./Bits";
 
+// category key → friendly label
+const CATS: [string, string][] = [
+  ["greeting", "Saudação / rapport"],
+  ["faq", "Dúvida simples (FAQ)"],
+  ["smalltalk", "Conversa leve"],
+  ["price", "Preço / cupom"],
+  ["objection", "Objeção"],
+  ["health_claim", "Saúde / ansiedade / sono"],
+  ["closing", "Fechamento"],
+  ["payment", "Pagamento"],
+  ["other", "Suspeita / spam"],
+];
+
 export default function ConfigView() {
   const [prompt, setPrompt] = useState<string | null>(null);
   const [disabled, setDisabled] = useState<DisabledItem[]>([]);
@@ -13,6 +26,7 @@ export default function ConfigView() {
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [settingsMsg, setSettingsMsg] = useState("");
+  const [catMsg, setCatMsg] = useState("");
 
   async function loadDisabled() {
     const r = await apiGet<{ disabled: DisabledItem[] }>("?action=disabled");
@@ -43,13 +57,36 @@ export default function ConfigView() {
     const keys: (keyof Settings)[] = ["debounce_seconds", "per_user_hourly_cap", "daily_auto_cap"];
     for (const k of keys) {
       const r = await apiPost({ action: "setting", key: k, value: settings[k] });
-      if (!r.ok) {
-        setSettingsMsg("Erro: " + (r.body.error || r.status));
-        return;
-      }
+      if (!r.ok) return setSettingsMsg("Erro: " + (r.body.error || r.status));
     }
     setSettingsMsg("Salvo!");
     setTimeout(() => setSettingsMsg(""), 1500);
+  }
+
+  // checked = category REQUIRES approval (is in approval_categories = NOT auto)
+  function toggleCat(cat: string) {
+    if (!settings) return;
+    const has = settings.approval_categories.includes(cat);
+    const next = has
+      ? settings.approval_categories.filter((c) => c !== cat)
+      : [...settings.approval_categories, cat];
+    setSettings({ ...settings, approval_categories: next });
+  }
+
+  async function saveCats() {
+    if (!settings) return;
+    setCatMsg("Salvando...");
+    const posts: [keyof Settings, unknown][] = [
+      ["approval_categories", settings.approval_categories],
+      ["custom_rule_enabled", settings.custom_rule_enabled],
+      ["custom_rule", settings.custom_rule],
+    ];
+    for (const [key, value] of posts) {
+      const r = await apiPost({ action: "setting", key, value });
+      if (!r.ok) return setCatMsg("Erro: " + (r.body.error || r.status));
+    }
+    setCatMsg("Salvo!");
+    setTimeout(() => setCatMsg(""), 1500);
   }
 
   async function reactivate(c: DisabledItem) {
@@ -74,6 +111,69 @@ export default function ConfigView() {
 
   return (
     <div className="space-y-3">
+      <div className="card">
+        <h3 className="font-semibold">Não responder automaticamente</h3>
+        <p className="mb-2 mt-0.5 text-sm text-neutral-500">
+          Marque os tipos de mensagem que devem SEMPRE ir para a fila de aprovação. Os desmarcados
+          são respondidos automaticamente (respeitando as travas de segurança).
+        </p>
+        {!settings ? (
+          <p className="text-sm text-neutral-500">Carregando...</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+              {CATS.map(([key, label]) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                >
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={settings.approval_categories.includes(key)}
+                    onChange={() => toggleCat(key)}
+                  />
+                  <span className="text-sm">{label}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="mt-2 border-t border-neutral-200 pt-2 dark:border-neutral-800">
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={settings.custom_rule_enabled}
+                  onChange={(e) => setSettings({ ...settings, custom_rule_enabled: e.target.checked })}
+                />
+                <span className="text-sm font-medium">Outra (regra personalizada)</span>
+              </label>
+              {settings.custom_rule_enabled && (
+                <div className="px-2">
+                  <textarea
+                    className="field mt-1 min-h-[70px]"
+                    placeholder='Ex.: "Se o cliente perguntar sobre reembolso ou trocar de produto"'
+                    value={settings.custom_rule}
+                    onChange={(e) => setSettings({ ...settings, custom_rule: e.target.value })}
+                  />
+                  <p className="mt-1 text-xs text-neutral-500">
+                    Se a mensagem se enquadrar nessa condição, a resposta vai para aprovação (mesmo que
+                    a categoria seja automática).
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-3 flex items-center gap-3">
+              <button className="btn-approve" onClick={saveCats}>
+                Salvar
+              </button>
+              {catMsg && <span className="text-sm text-neutral-500">{catMsg}</span>}
+            </div>
+          </>
+        )}
+      </div>
+
       <div className="card">
         <h3 className="font-semibold">Ajustes</h3>
         {!settings ? (

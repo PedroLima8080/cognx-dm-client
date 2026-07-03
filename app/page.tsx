@@ -19,6 +19,9 @@ export default function Home() {
     daily_auto_cap: 200,
     per_user_hourly_cap: 8,
     debounce_seconds: 25,
+    approval_categories: ["price", "objection", "health_claim", "closing", "payment", "other"],
+    custom_rule_enabled: false,
+    custom_rule: "",
   });
 
   useEffect(() => {
