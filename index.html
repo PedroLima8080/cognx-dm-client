@@ -13,15 +13,17 @@
     .msg.in{background:#232833}.msg.out{background:#1e2a1e}.reject,.tab{color:#e7e9ee}
     .tab.active{background:#2c313c}}
   .wrap{max-width:660px;margin:0 auto;padding:14px}
-  .top{background:#fff;border:1px solid #e4e6eb;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+  .top{background:#fff;border:1px solid #e4e6eb;border-radius:12px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
   .top b{font-size:.95rem}
+  .toggle{font-size:.78rem;font-weight:700;padding:5px 10px;border-radius:999px;cursor:pointer;border:0}
+  .toggle.on{background:#d7f0d9;color:#1c6a2c}.toggle.off{background:#fbe0e0;color:#8a1f1f}
   .tabs{display:flex;gap:6px;background:#fff;border:1px solid #e4e6eb;border-radius:12px;padding:5px;margin-bottom:12px}
   .tab{flex:1;text-align:center;padding:9px;border-radius:9px;cursor:pointer;font-size:.9rem;font-weight:600;color:#555;border:0;background:none}
   .tab.active{background:#eef1f6;color:#15181d}
   .card{background:#fff;border:1px solid #e4e6eb;border-radius:14px;padding:16px;margin-bottom:12px}
   .head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
   .who{font-weight:600}.badge{font-size:.72rem;padding:2px 9px;border-radius:999px;background:#ffe6c7;color:#8a4b00;white-space:nowrap}
-  .badge.pend{background:#ffd9d9;color:#8a1f1f}
+  .badge.pend{background:#ffd9d9;color:#8a1f1f}.badge.blk{background:#3a3a3a;color:#fff}
   .reason{font-size:.8rem;opacity:.7;margin:2px 0 10px}
   .msg{padding:7px 11px;border-radius:10px;margin:5px 0;font-size:.9rem;line-height:1.45;white-space:pre-wrap}
   .msg.in{background:#eef1f6}.msg.out{background:#e6f4e6}
@@ -31,9 +33,9 @@
   .row{display:flex;gap:8px;margin-top:10px}
   button{border:0;border-radius:10px;padding:11px;font-size:.95rem;font-weight:600;cursor:pointer}
   .row button{flex:1}
-  .approve{background:#1c8a3c;color:#fff}.reject{background:#e4e6eb;color:#333}.send{background:#2554d6;color:#fff}
+  .approve{background:#1c8a3c;color:#fff}.reject{background:#e4e6eb;color:#333}.send{background:#2554d6;color:#fff}.block{background:#7a2020;color:#fff}
   .conv{display:flex;justify-content:space-between;gap:10px;align-items:center;cursor:pointer}
-  .conv .snip{font-size:.82rem;opacity:.65;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%}
+  .conv .snip{font-size:.82rem;opacity:.65;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
   .login{max-width:360px;margin:60px auto;background:#fff;border:1px solid #e4e6eb;border-radius:14px;padding:24px}
   .login h1{font-size:1.2rem;margin:0 0 16px}.login input{margin-bottom:10px}
   .err{color:#c0392b;font-size:.85rem;margin-top:8px}.empty{text-align:center;opacity:.6;padding:40px 0}
@@ -49,7 +51,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const SUPABASE_URL   = "https://ontekwcuuckzvuoittrc.supabase.co";
+const SUPABASE_URL    = "https://ontekwcuuckzvuoittrc.supabase.co";
 const PUBLISHABLE_KEY = "sb_publishable_l7x7znw_BPIF5ORswwt96Q_wT_Jia14";
 const API = SUPABASE_URL + "/functions/v1/dashboard-api";
 // ──────────────────────────────────────────────────────────────────────────────
@@ -58,21 +60,20 @@ const sb = createClient(SUPABASE_URL, PUBLISHABLE_KEY);
 const app = document.getElementById("app");
 const esc = (s) => (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let tab = "pending";
+let settings = { auto_reply_enabled: true };
 
-async function authHeaders() {
+async function authHeaders(){
   const { data:{ session } } = await sb.auth.getSession();
   return { apikey: PUBLISHABLE_KEY, Authorization: "Bearer " + session.access_token, "Content-Type": "application/json" };
 }
 async function apiGet(qs){ const r = await fetch(API + qs, { headers: await authHeaders() }); return { ok:r.ok, status:r.status, body: await r.json().catch(()=>({})) }; }
 async function apiPost(obj){ const r = await fetch(API, { method:"POST", headers: await authHeaders(), body: JSON.stringify(obj) }); return { ok:r.ok, status:r.status, body: await r.json().catch(()=>({})) }; }
 
-// ── Entry ─────────────────────────────────────────────────────────────────────
 async function boot(){
   const { data:{ session } } = await sb.auth.getSession();
   if(!session) return showLogin();
   render();
 }
-sb.auth.onAuthStateChange((_e,_s)=>{});
 
 function showLogin(msg){
   app.innerHTML = `<div class="login"><h1>CognX — Operador</h1>
@@ -91,31 +92,41 @@ function showLogin(msg){
 async function logout(){ await sb.auth.signOut(); showLogin(); }
 
 function shell(inner){
+  const on = settings.auto_reply_enabled;
   app.innerHTML = `
-    <div class="top"><b>CognX — Operador</b><button class="link" id="lo">sair</button></div>
+    <div class="top"><b>CognX — Operador</b>
+      <span style="display:flex;gap:8px;align-items:center">
+        <button class="toggle ${on?"on":"off"}" id="auto">Auto: ${on?"ON":"OFF"}</button>
+        <button class="link" id="lo">sair</button></span></div>
     <div class="tabs">
       <button class="tab ${tab==="pending"?"active":""}" data-t="pending">Pendentes</button>
       <button class="tab ${tab==="convs"?"active":""}" data-t="convs">Conversas</button>
     </div>
     <div id="view">${inner}</div>`;
   document.getElementById("lo").onclick = logout;
-  app.querySelectorAll(".tab").forEach(b=> b.onclick = ()=>{ tab=b.dataset.t; render(); });
+  document.getElementById("auto").onclick = async (e) => {
+    e.target.textContent = "...";
+    const r = await apiPost({ action:"setting", key:"auto_reply_enabled", value: !settings.auto_reply_enabled });
+    if(r.ok){ settings = r.body.settings; render(); }
+  };
+  app.querySelectorAll(".tab").forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
 }
 
 async function render(){
-  if(tab==="pending") return renderPending();
+  const s = await apiGet("?action=settings");
+  if(s.status === 403){ app.innerHTML = `<div class="login">Sem permissao de operador.</div>`; return; }
+  if(s.ok) settings = s.body.settings;
+  if(tab === "pending") return renderPending();
   return renderConvs();
 }
 
-// ── Pending drafts ──────────────────────────────────────────────────────────────
+// ── Pending drafts ────────────────────────────────────────────────────────────
 async function renderPending(){
   shell(`<div class="empty">Carregando...</div>`);
   const res = await apiGet("?action=pending");
-  if(res.status===403){ shell(`<div class="empty">Sem permissao de operador.</div>`); return; }
-  if(!res.ok){ shell(`<div class="empty">Erro ${res.status}.</div>`); return; }
-  const { pending } = res.body;
+  if(!res.ok){ document.getElementById("view").innerHTML = `<div class="empty">Erro ${res.status}.</div>`; return; }
   let html = "";
-  for(const d of pending){
+  for(const d of res.body.pending){
     let thread=""; for(const m of d.messages){ thread+=`<div class="msg ${m.direction==="in"?"in":"out"}">${esc(m.content)}</div>`; }
     html += `<div class="card" data-id="${esc(d.id)}">
       <div class="head"><span class="who">${esc(d.who)}</span><span class="badge">${esc(d.category||"?")}</span></div>
@@ -127,60 +138,65 @@ async function renderPending(){
       <button class="reject" data-act="reject">Rejeitar</button></div></div>`;
   }
   document.getElementById("view").innerHTML = html || `<div class="empty">Nenhuma mensagem aguardando aprovacao.</div>`;
-  document.querySelectorAll("button[data-act]").forEach(btn=>{
-    btn.onclick = async ()=>{
+  document.querySelectorAll("button[data-act]").forEach(btn => {
+    btn.onclick = async () => {
       const card = btn.closest(".card"); const id = card.dataset.id;
       const text = card.querySelector("textarea").value;
-      btn.textContent="...";
+      btn.textContent = "...";
       const r = await apiPost({ action: btn.dataset.act, draftId:id, editedText:text });
       if(r.ok) card.remove(); else btn.textContent = "Erro: "+(r.body.error||r.status);
     };
   });
 }
 
-// ── Conversations + manual reply ─────────────────────────────────────────────────
+// ── Conversations + manual reply + block ──────────────────────────────────────
 async function renderConvs(){
   shell(`<div class="empty">Carregando...</div>`);
   const res = await apiGet("?action=conversations");
-  if(!res.ok){ shell(`<div class="empty">Erro ${res.status}.</div>`); return; }
-  const { conversations } = res.body;
+  if(!res.ok){ document.getElementById("view").innerHTML = `<div class="empty">Erro ${res.status}.</div>`; return; }
   let html="";
-  for(const c of conversations){
+  for(const c of res.body.conversations){
     const snip = c.last ? (c.last.direction==="in"?"↩ ":"↪ ")+c.last.content : "";
     html += `<div class="card conv" data-id="${esc(c.id)}">
       <div><div class="who">${esc(c.who)}</div><div class="snip">${esc(snip)}</div></div>
-      ${c.has_pending?`<span class="badge pend">pendente</span>`:""}</div>`;
+      <span>${c.blocked?`<span class="badge blk">bloqueado</span>`:(c.has_pending?`<span class="badge pend">pendente</span>`:"")}</span></div>`;
   }
   document.getElementById("view").innerHTML = html || `<div class="empty">Nenhuma conversa ainda.</div>`;
-  document.querySelectorAll(".conv").forEach(el=> el.onclick = ()=> openThread(el.dataset.id));
+  document.querySelectorAll(".conv").forEach(el => el.onclick = () => openThread(el.dataset.id));
 }
 
 async function openThread(id){
   const res = await apiGet("?action=thread&id="+encodeURIComponent(id));
   if(!res.ok){ alert("Erro ao abrir conversa"); return; }
-  const { messages, pending_draft } = res.body;
+  const { messages, pending_draft, blocked } = res.body;
   let thread=""; for(const m of messages){ thread+=`<div class="msg ${m.direction==="in"?"in":"out"}">${esc(m.content)}</div>`; }
   const prefill = pending_draft ? esc(pending_draft.draft_text) : "";
   document.getElementById("view").innerHTML = `
     <button class="back" id="bk">← voltar</button>
-    ${pending_draft?`<div class="reason">Ha um rascunho pendente (${esc(pending_draft.category||"")}). Voce pode edita-lo abaixo e enviar.</div>`:""}
+    ${blocked?`<div class="reason">Este perfil esta BLOQUEADO: as mensagens dele nao sao respondidas.</div>`:""}
+    ${pending_draft?`<div class="reason">Ha um rascunho pendente (${esc(pending_draft.category||"")}). Edite abaixo e envie.</div>`:""}
     <div class="card">${thread||'<div class="empty">Sem mensagens.</div>'}</div>
     <div class="compose">
       <div class="lbl">Responder manualmente</div>
       <textarea id="mtext">${prefill}</textarea>
       <div class="row">
-        ${pending_draft?`<button class="approve" id="approve">Aprovar rascunho e enviar</button>`:""}
+        ${pending_draft?`<button class="approve" id="approve">Aprovar rascunho</button>`:""}
         <button class="send" id="msend">Enviar</button>
+        <button class="block" id="blk2">${blocked?"Desbloquear":"Bloquear"}</button>
       </div>
     </div>`;
   document.getElementById("bk").onclick = renderConvs;
-  document.getElementById("msend").onclick = async (e)=>{
+  document.getElementById("msend").onclick = async (e) => {
     const text = document.getElementById("mtext").value;
     e.target.textContent="..."; const r = await apiPost({ action:"send", conversationId:id, text });
     if(r.ok) openThread(id); else e.target.textContent = "Erro: "+(r.body.error||r.status);
   };
+  document.getElementById("blk2").onclick = async () => {
+    await apiPost({ action:"block", conversationId:id, blocked: !blocked });
+    openThread(id);
+  };
   const ap = document.getElementById("approve");
-  if(ap) ap.onclick = async (e)=>{
+  if(ap) ap.onclick = async (e) => {
     const text = document.getElementById("mtext").value;
     e.target.textContent="..."; const r = await apiPost({ action:"approve", draftId:pending_draft.id, editedText:text });
     if(r.ok) openThread(id); else e.target.textContent = "Erro: "+(r.body.error||r.status);
