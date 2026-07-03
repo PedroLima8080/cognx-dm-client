@@ -1,41 +1,53 @@
-# CognX — Operator Client
+# CognX — Operator Client (Next.js)
 
-Static operator dashboard for the CognX DM agent. Login (Supabase Auth) →
-approve/edit/reject drafts, browse conversations, reply manually.
+Front-end only. The backend is the Supabase edge functions (`dashboard-api`).
+Login (Supabase Auth) → approve/edit/reject drafts, browse conversations, reply
+manually, "suggest next message", toggle auto-reply per customer, block, and edit
+the system prompt.
 
-It's a single `index.html` with no build step. It talks to the `dashboard-api`
-Supabase function (which requires a valid operator login token).
+Static export (`output: "export"`) — no server. Deploy the `out/` folder anywhere.
 
-## Config
+## Stack
+Next.js 14 (App Router) · TypeScript · Tailwind CSS · @supabase/supabase-js.
 
-Edit the CONFIG block at the top of the `<script>` in `index.html` if anything changes:
-
-```js
-const SUPABASE_URL    = "https://ontekwcuuckzvuoittrc.supabase.co";
-const PUBLISHABLE_KEY = "sb_publishable_...";   // safe to be public
-const API             = SUPABASE_URL + "/functions/v1/dashboard-api";
-```
-
-The publishable key is meant to be public — real security is the Supabase login
-token + the operator-email check inside `dashboard-api`.
-
-## Deploy to GitHub Pages
-
+## Local dev
 ```bash
 cd D:/Dev/cognx-dm-client
-git init
-git add .
-git commit -m "CognX operator client"
-git branch -M main
-git remote add origin https://github.com/<you>/cognx-dm-client.git
-git push -u origin main
+npm install
+npm run dev          # http://localhost:3000
 ```
 
-Then on GitHub: **Settings → Pages → Source: `main` / root → Save**.
-Your dashboard will be at `https://<you>.github.io/cognx-dm-client/`.
+`.env.local` already has the (public) Supabase URL + publishable key. Real
+security is the login token + the operator-email check inside `dashboard-api`.
+
+## Build
+```bash
+npm run build        # outputs static site to ./out
+```
+
+## Deploy
+
+### Option A — Vercel (easiest)
+Import the repo at vercel.com → it auto-detects Next.js → deploy. No config, no
+basePath. Add the two `NEXT_PUBLIC_*` env vars in the Vercel dashboard.
+
+### Option B — GitHub Pages (workflow included)
+`.github/workflows/deploy.yml` builds and deploys on every push to `main`.
+1. Push this folder to a GitHub repo.
+2. Repo **Settings → Pages → Source: GitHub Actions**.
+3. Push to `main`. The workflow sets `basePath` to `/<repo>` and adds `.nojekyll`
+   automatically, so assets resolve correctly at
+   `https://<you>.github.io/<repo>/`.
 
 ## First-time login
+Create your operator account in **Supabase dashboard → Authentication → Users →
+Add user** (email + password, tick *Auto Confirm User*). The email must match
+`ALLOWED_OPERATOR_EMAIL` set on the functions (`ph.lima014@gmail.com`).
 
-Create your operator account in the **Supabase dashboard → Authentication →
-Users → Add user** (email + password, tick *Auto Confirm User*). That email must
-match `ALLOWED_OPERATOR_EMAIL` set on the functions. Then log in from the client.
+## Structure
+```
+app/            layout, globals.css, page.tsx (orchestrator)
+components/      Login, TopBar, PendingView, ConversationsView, ThreadView, ConfigView, Bits
+lib/            supabase client, api wrappers, config
+types.ts        shared types
+```
