@@ -1,25 +1,27 @@
 "use client";
-import type { Tab } from "@/types";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-const TABS: [Tab, string][] = [
-  ["pending", "Pendentes"],
-  ["convs", "Conversas"],
-  ["config", "Config"],
+const TABS: [string, string][] = [
+  ["/pendentes/", "Pendentes"],
+  ["/conversas/", "Conversas"],
+  ["/config/", "Config"],
 ];
 
 export default function TopBar({
   autoOn,
   onToggle,
-  tab,
-  setTab,
   onLogout,
 }: {
   autoOn: boolean;
   onToggle: () => void;
-  tab: Tab;
-  setTab: (t: Tab) => void;
   onLogout: () => void;
 }) {
+  const path = usePathname();
+  // "Conversas" stays active on the conversation detail route (/conversa/).
+  const active = (href: string) =>
+    href === "/conversas/" ? path.startsWith("/conversa") : path === href;
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900">
@@ -42,18 +44,18 @@ export default function TopBar({
       </div>
 
       <div className="flex gap-1 rounded-2xl border border-neutral-200 bg-white p-1 dark:border-neutral-800 dark:bg-neutral-900">
-        {TABS.map(([k, label]) => (
-          <button
-            key={k}
-            onClick={() => setTab(k)}
-            className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition ${
-              tab === k
+        {TABS.map(([href, label]) => (
+          <Link
+            key={href}
+            href={href}
+            className={`flex-1 rounded-xl px-3 py-2 text-center text-sm font-semibold transition ${
+              active(href)
                 ? "bg-neutral-100 text-neutral-900 dark:bg-neutral-800 dark:text-neutral-100"
                 : "text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"
             }`}
           >
             {label}
-          </button>
+          </Link>
         ))}
       </div>
     </div>

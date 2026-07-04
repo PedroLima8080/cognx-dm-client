@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import Shell from "@/components/Shell";
 
 export const metadata: Metadata = {
   title: "CognX · Operador",
@@ -14,7 +15,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <Shell>{children}</Shell>
+      </body>
     </html>
   );
 }

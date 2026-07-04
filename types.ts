@@ -1,5 +1,3 @@
-export type Tab = "pending" | "convs" | "config";
-
 export interface Settings {
   auto_reply_enabled: boolean;
   daily_auto_cap: number;

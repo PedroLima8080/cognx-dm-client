@@ -28,6 +28,10 @@ export default function ConfigView() {
   const [settingsMsg, setSettingsMsg] = useState("");
   const [catMsg, setCatMsg] = useState("");
 
+  const [importLimit, setImportLimit] = useState(25);
+  const [importMsg, setImportMsg] = useState("");
+  const [importing, setImporting] = useState(false);
+
   async function loadDisabled() {
     const r = await apiGet<{ disabled: DisabledItem[] }>("?action=disabled");
     if (r.ok) setDisabled(r.body.disabled);
@@ -87,6 +91,21 @@ export default function ConfigView() {
     }
     setCatMsg("Salvo!");
     setTimeout(() => setCatMsg(""), 1500);
+  }
+
+  async function runImport() {
+    setImporting(true);
+    setImportMsg("Importando... (pode levar um tempo)");
+    const r = await apiPost<{ conversations?: number; messages?: number; error?: string }>({
+      action: "import",
+      limit: importLimit,
+    });
+    setImporting(false);
+    if (r.ok) {
+      setImportMsg(`Pronto: ${r.body.conversations ?? 0} conversas, ${r.body.messages ?? 0} mensagens.`);
+    } else {
+      setImportMsg("Erro: " + (r.body.error || r.status));
+    }
   }
 
   async function reactivate(c: DisabledItem) {
@@ -225,6 +244,32 @@ export default function ConfigView() {
             </div>
           </>
         )}
+      </div>
+
+      <div className="card">
+        <h3 className="font-semibold">Importar conversas do Instagram</h3>
+        <p className="mb-2 mt-0.5 text-sm text-neutral-500">
+          Puxa as conversas mais recentes do Instagram (participante + histórico de mensagens) para
+          dar contexto ao agente. Não dispara respostas nem custo de IA. Pode rodar de novo sem
+          duplicar.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <div>
+            <div className="lbl">Quantas conversas</div>
+            <input
+              className="field w-28"
+              type="number"
+              min={1}
+              max={100}
+              value={importLimit}
+              onChange={(e) => setImportLimit(Number(e.target.value))}
+            />
+          </div>
+          <button className="btn-approve self-end" onClick={runImport} disabled={importing}>
+            {importing ? "Importando..." : "Importar"}
+          </button>
+          {importMsg && <span className="text-sm text-neutral-500">{importMsg}</span>}
+        </div>
       </div>
 
       <div className="card">
