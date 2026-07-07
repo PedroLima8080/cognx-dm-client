@@ -47,6 +47,37 @@ export interface ThreadResp {
   first_name: string | null;
 }
 
+export interface Campaign {
+  id: string | null;
+  label: string;
+  media_id: string | null;
+  keyword: string | null;
+  match_type: "contains" | "exact";
+  dm_message: string;
+  public_reply: string | null;
+  enabled: boolean;
+  sent_count?: number;
+}
+
+export interface CampaignLogItem {
+  comment_id: string;
+  username: string | null;
+  text: string;
+  media_id: string | null;
+  status: "sent" | "skipped" | "error";
+  detail: string | null;
+  created_at: string;
+  campaign: string | null;
+}
+
+export interface IgMedia {
+  id: string;
+  caption?: string;
+  media_type?: string;
+  permalink?: string;
+  timestamp?: string;
+}
+
 export interface DisabledItem {
   ig_user_id: string;
   who: string;
